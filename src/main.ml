@@ -335,11 +335,11 @@ let cd_eject_cmd =
   Term.(ret (pure Xn.cd_eject $ common_options_t $ vbd)),
   Term.info "cd-eject" ~sdocs:_common_options ~doc ~man  
 
-let vif_plug_cmd =
-  let doc = "Plug a VIF into a VM" in
+let vif_add_cmd =
+  let doc = "Add VIF metadata to a VM" in
   let man = [
     `S "DESCRIPTION";
-    `P "Plug a VIF into a VM. Note that PV drivers are required for this to work";
+    `P "Add VIF metadata to a VM. Note that this does not plug the VIF";
   ] @ help in
   let vif =
     let doc = "VIF id" in
@@ -350,9 +350,21 @@ let vif_plug_cmd =
   let bridge =
     let doc = "Bridge name" in
     Arg.(value & pos 2 (some string) None & info [] ~doc) in
-  Term.(ret (pure Xn.vif_plug $ common_options_t $ vif $ mac $ bridge)),
+  Term.(ret (pure Xn.vif_add $ common_options_t $ vif $ mac $ bridge)),
   Term.info "vif-plug" ~sdocs:_common_options ~doc ~man
 
+let vif_plug_cmd =
+  let doc = "Plug a VIF into a VM" in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Plug a VIF into a VM. Note that PV drivers are required for this to work";
+  ] @ help in
+  let vif =
+    let doc = "VIF id" in
+    Arg.(value & pos 0 (some string) None & info [] ~doc) in
+  Term.(ret (pure Xn.vif_plug $ common_options_t $ vif)),
+  Term.info "vif-plug" ~sdocs:_common_options ~doc ~man
+    
 let vif_unplug_cmd =
   let doc = "Unplug a VIF from a VM" in
   let man = [
@@ -362,7 +374,10 @@ let vif_unplug_cmd =
   let vif =
     let doc = "VIF id" in
     Arg.(value & pos 0 (some string) None & info [] ~doc) in
-  Term.(ret (pure Xn.vif_unplug $ common_options_t $ vif)),
+  let remove =
+    let doc = "Remove the metadata from xenopsd" in
+    Arg.(value & flag & info ["r"; "R"; "remove"] ~doc) in
+  Term.(ret (pure Xn.vif_unplug $ common_options_t $ vif $ remove)),
   Term.info "vif-unplug" ~sdocs:_common_options ~doc ~man
 
 let default_cmd = 
@@ -374,7 +389,7 @@ let default_cmd =
 let cmds = [list_cmd; create_cmd; add_cmd; remove_cmd; start_cmd; shutdown_cmd; reboot_cmd;
             suspend_cmd; resume_cmd; pause_cmd; unpause_cmd;
             import_cmd; export_cmd; console_cmd; diagnostics_cmd; events_cmd;
-            tasks_cmd; task_cancel_cmd; cd_eject_cmd; vif_plug_cmd; vif_unplug_cmd ]
+            tasks_cmd; task_cancel_cmd; cd_eject_cmd; vif_add_cmd; vif_plug_cmd; vif_unplug_cmd ]
 
 let _ =
   Xcp_client.use_switch := false;
