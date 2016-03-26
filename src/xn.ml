@@ -1021,7 +1021,54 @@ let cd_insert id disk =
 	| Some backend ->
 		Client.VBD.insert dbg vbd.Vbd.id backend |> wait_for_task dbg
 
-let rec events_watch from =
+let (>>=) v f = match v with `Ok x -> f x | `Error x -> `Error x | `Help y -> `Help y
+
+let require str = function
+  | Some s -> `Ok s
+  | None -> `Error (true, str)
+
+let vif_plug copts id_opt mac_opt bridge_opt =
+  require "Please supply an ID argument of the form '<vm uuid>.[0-9]'" id_opt >>= fun id ->
+  require "Please supply a MAC for the VIF" mac_opt >>= fun mac -> 
+  require "Please supply a bridge for the VIF" bridge_opt >>= fun bridge ->
+  let vif_id : Vif.id = match Re_str.bounded_split_delim (Re_str.regexp "[.]") id 2 with
+    | [ a; b ] -> a, b
+    | _ ->
+      Printf.fprintf stderr "Failed to parse VIF id: %s (expected VM.device)\n" id;
+      exit 1 in
+  let (vm, pos) = vif_id in
+  diagnose_error (fun () ->
+      let vif = Vif.({
+          id = vif_id;
+          position = int_of_string pos;
+          mac = mac;
+          carrier = true;
+          mtu = 1500;
+          rate = None;
+          backend = Network.Local bridge;
+          other_config = [];
+          locking_mode = Unlocked;
+          extra_private_keys = [];
+          ipv4_configuration = Unspecified4;
+          ipv6_configuration = Unspecified6;
+        }) in
+      let id = Client.VIF.add dbg vif in
+      Client.VIF.plug dbg id |> wait_for_task dbg |> success_task ignore_task;
+      `Ok ())
+
+let vif_unplug copts id_opt =
+  require "Please supply an ID argument of the form '<vm uuid>.[0-9]'" id_opt >>= fun id ->
+  let vif_id : Vif.id = match Re_str.bounded_split_delim (Re_str.regexp "[.]") id 2 with
+    | [ a; b ] -> a, b
+    | _ ->
+      Printf.fprintf stderr "Failed to parse VIF id: %s (expected VM.device)\n" id;
+      exit 1 in
+  diagnose_error (fun () ->
+      Client.VIF.unplug dbg vif_id false |> wait_for_task dbg |> success_task ignore_task;
+      Client.VIF.remove dbg vif_id;
+      `Ok ())
+  
+  let rec events_watch from =
 	let _, events, next = Client.UPDATES.get dbg from None in
 	let open Dynamic in
 	let lines = List.map
