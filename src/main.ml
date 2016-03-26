@@ -351,7 +351,7 @@ let vif_add_cmd =
     let doc = "Bridge name" in
     Arg.(value & pos 2 (some string) None & info [] ~doc) in
   Term.(ret (pure Xn.vif_add $ common_options_t $ vif $ mac $ bridge)),
-  Term.info "vif-plug" ~sdocs:_common_options ~doc ~man
+  Term.info "vif-add" ~sdocs:_common_options ~doc ~man
 
 let vif_plug_cmd =
   let doc = "Plug a VIF into a VM" in
