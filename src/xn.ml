@@ -535,6 +535,32 @@ let diagnostics' () =
 	Client.get_diagnostics dbg () |> Jsonrpc.of_string |> pp;
 	`Ok ()
 
+let stat_vm _ id =
+  let open Vm in
+  let id = match id with | Some id -> id | None -> failwith "Need VM" in
+  let vm_t, vm_stat = Client.VM.stat dbg id in
+  let fields = [
+    "power_state", (match vm_stat.power_state with | Running -> "Running" | Halted -> "Halted" | Suspended -> "Suspended" | Paused -> "Paused");
+    "domids",(String.concat "," (List.map string_of_int vm_stat.domids));
+    "consoles", String.concat "," (List.map (fun c -> Jsonrpc.to_string (rpc_of_console c)) vm_stat.consoles);
+    "memory_target", Int64.to_string vm_stat.memory_target;
+    "memory_actual", Int64.to_string vm_stat.memory_actual;
+    "memory_limit", Int64.to_string vm_stat.memory_limit;
+    "vcpu_target", string_of_int vm_stat.vcpu_target;
+    "shadow_multiplier_target", string_of_float vm_stat.shadow_multiplier_target;
+    "rtc_timeoffset", vm_stat.rtc_timeoffset;
+    "uncooperative_balloon_driver", string_of_bool vm_stat.uncooperative_balloon_driver;
+    "guest_agent", Printf.sprintf "{%s}" (String.concat "; " (List.map (fun (k,v) -> Printf.sprintf "%s: '%s'" k v) vm_stat.guest_agent));
+    "guest_agent", Printf.sprintf "{%s}" (String.concat "; " (List.map (fun (k,v) -> Printf.sprintf "%s: '%s'" k v) vm_stat.xsdata_state));
+    "pv_drivers_detected", string_of_bool vm_stat.pv_drivers_detected;
+    "last_start_time", string_of_float vm_stat.last_start_time;
+    "hvm", string_of_bool vm_stat.hvm;
+  ] in
+  List.iter (fun (k, v) ->
+      Printf.fprintf stdout "%30s: %s\n" k v
+    ) fields;
+  `Ok ()
+
 let diagnostics copts = diagnose_error diagnostics'
 
 let find_by_name x =
